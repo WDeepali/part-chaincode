@@ -1,37 +1,11 @@
-/*
-Copyright 2016 IBM
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Licensed Materials - Property of IBM
-© Copyright IBM Corp. 2016
-*/
 package main
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
-
 	"github.com/hyperledger/fabric/core/chaincode/shim"
-
 )
-
-const   PRODUCER1 = "SUPPLIER1"
-const 	PRODUCER2 = "SUPPLIER2"
-const 	DEALER = "DEALER"
-const 	SERVICE_CENTER = "SERVICE_CENTER"
 
 
 // SimpleChaincode example simple Chaincode implementation
@@ -53,8 +27,6 @@ type Transaction struct {
 	VehicleId		string	`json:"vehicleId"`
 	WarrantyStartDate	string	`json:"warrantyStartDate"`
 	WarrantyEndDate		string	`json:"warrantyEndDate"`
-	ServicingDate		string	`json:"servicingDate"`
-	ServiceDesc		string	`json:"serviceDesc"`
 	TType 			string   `json:"ttype"`
 }
 
@@ -183,16 +155,7 @@ func (t *SimpleChaincode) getAllParts(stub  shim.ChaincodeStubInterface, user st
 		json.Unmarshal(sbAsBytes, &sb)
 
 		// currently we show all parts to the users
-		//if(user == DEALER) {
-			rab.Parts = append(rab.Parts,sb.PartId);
-		//}
-		//else{
-		//	var _owner = sb.Owner
-		//	if (user == _owner){
-		//		rab.Parts = append(rab.Parts,sb.PartId);
-		//		break;
-		//	}
-		//}
+		rab.Parts = append(rab.Parts,sb.PartId);
 	}
 
 	rabAsBytes, _ := json.Marshal(rab)
@@ -201,7 +164,7 @@ func (t *SimpleChaincode) getAllParts(stub  shim.ChaincodeStubInterface, user st
 
 }
 
-
+// creating new part in blockchain
 func (t *SimpleChaincode) createPart(stub  shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
 	var err error
@@ -213,11 +176,6 @@ func (t *SimpleChaincode) createPart(stub  shim.ChaincodeStubInterface, args []s
 	}
 
 	fmt.Println("Arguments :"+args[0]+","+args[1]+","+args[2]+","+args[3]);
-	// currently there is no such validation
-	//if (args[2] != PRODUCER1)&&(args[2] != PRODUCER2)  {
-	//	fmt.Println("You are not allowed to create a new Part")
-	//	return nil, errors.New("You are not allowed to create a new Part")
-	//}
 
 	var bt Part
 	bt.PartId 			= args[0]
@@ -257,16 +215,17 @@ func (t *SimpleChaincode) createPart(stub  shim.ChaincodeStubInterface, args []s
 	return nil, nil
 }
 
+// Updating existing part in blockchain
 func (t *SimpleChaincode) updatePart(stub  shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
 	var err error
 	fmt.Println("Running updatePart")
 
-	if len(args) != 9 {
-		fmt.Println("Incorrect number of arguments. Expecting 9 - PartId, Vehicle Id, Delivery Date, Installation Date, User, Warranty Start Date, Warranty End Date, Servicing Date, Service Desc")
-		return nil, errors.New("Incorrect number of arguments. Expecting 9")
+	if len(args) != 8 {
+		fmt.Println("Incorrect number of arguments. Expecting 8 - PartId, Vehicle Id, Delivery Date, Installation Date, User, Warranty Start Date, Warranty End Date, Type")
+		return nil, errors.New("Incorrect number of arguments. Expecting 7")
 	}
-	fmt.Println("Arguments :"+args[0]+","+args[1]+","+args[2]+","+args[3]+","+args[4]+","+args[5]+","+args[6]+","+args[7]+","+args[8]);
+	fmt.Println("Arguments :"+args[0]+","+args[1]+","+args[2]+","+args[3]+","+args[4]+","+args[5]+","+args[6]+","+args[7]);
 
 	//Get and Update Part data
 	bAsBytes, err := stub.GetState(args[0])
@@ -280,15 +239,7 @@ func (t *SimpleChaincode) updatePart(stub  shim.ChaincodeStubInterface, args []s
 	}
 
 	var tx Transaction
-	if (strings.Contains(args[4], DEALER)) {
-		tx.TType 	= "DELIVERY"
-	} else if (strings.Contains(args[4], SERVICE_CENTER)) {
-		if len(strings.TrimSpace(args[7])) == 0  { // servicing date
-			tx.TType 	= "SERVICED"
-		} else {
-			tx.TType 	= "INSTALLED"
-		}
-	}
+	tx.TType 	= args[7];
 
 	tx.VehicleId		= args[1]
 	tx.DateOfDelivery	= args[2]
@@ -296,8 +247,6 @@ func (t *SimpleChaincode) updatePart(stub  shim.ChaincodeStubInterface, args []s
 	tx.User  		= args[4]
 	tx.WarrantyStartDate	= args[5]
 	tx.WarrantyEndDate	= args[6]
-	tx.ServicingDate	= args[7]
-	tx.ServiceDesc		= args[8]
 
 
 	bch.Transactions = append(bch.Transactions, tx)
